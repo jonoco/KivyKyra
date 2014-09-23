@@ -1,0 +1,12 @@
+manager
+-handles UI creation and controller management
+-send controller data to screenmanager
+
+screenmanager
+-handles view and sprite management for particular room
+-takes controller data to move player sprite 
+-handles room transition events
+-handles player sprite relocation for transitions
+
+screen
+-shows view and sprites for room

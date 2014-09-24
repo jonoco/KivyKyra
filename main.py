@@ -65,7 +65,7 @@ class KYRScreenManager(ScreenManager):
         super(KYRScreenManager, self).__init__(**kwargs)
         self.loadAssets()
         self.room1 = KYRScreen(name='room1',
-                               bg = 'assets/art/LightWorld-LostWoods.png',
+                               bg = 'assets/art/room1.png',
                                music = self.overworld,
                                startLocations = dict(top = (512, 96),
                                                      bottom = (512, 416),
@@ -73,7 +73,7 @@ class KYRScreenManager(ScreenManager):
                                                      right = (96, 256)
                                 )) # inverse directions, based on direction you enter from
         self.room2 = KYRScreen(name='room2',
-                               bg = 'assets/art/Village.png',
+                               bg = 'assets/art/room2.png',
                                startLocations = dict(top = (512, 96),
                                                      bottom = (512, 416),
                                                      left = (928, 256),
@@ -94,8 +94,8 @@ class KYRScreenManager(ScreenManager):
         self.overworld = SoundLoader.load('assets/sound/overworld.wav')
         
     def buildLocationEvent(self):
-        self.room1.locationEvent = dict(top = self.room2)
-        self.room2.locationEvent = dict(bottom = self.room1)
+        self.room1.locationEvent = dict(bottom = self.room2)
+        self.room2.locationEvent = dict(top = self.room1)
         
     def updatePlayerLocation(self, dt):
         self.playerLocation = self.current_screen.player.pos
@@ -238,8 +238,8 @@ class KYRScreen(Screen):
         pass
         
     def buildPlayer(self, playerLocation):
-        self.player = AGSprite(source = 'assets/art/Clyde_down.zip', size=(64,64))
-        self.player.anim_delay = (-1)
+        self.player = AGSprite(source = 'assets/art/brandon-right.zip', size=(96,192))
+        #self.player.anim_delay = (-1)
         self.player.pos = playerLocation
         self.field.add_widget(self.player)   
     
@@ -295,8 +295,8 @@ class Manager(BoxLayout):
     def buildUI(self):
         bottomBox = RelativeLayout() # 1024,188
         self.screenManager = KYRScreenManager(size=(1024,512), size_hint=(None,None))
-        self.info = TextInput(text=self.infoText, multiline=True, readonly=True, size=(1014,30), size_hint=(None,None), pos=(5,153))
-        btnMenu = Button(text='menu', pos=(5,5), size_hint=(None,None), size=(200,120))
+        self.info = TextInput(text=self.infoText, multiline=True, readonly=True, size=(1014,30), size_hint=(None,None), pos=(6,152))
+        btnMenu = Button(text='menu', size=(200,140), size_hint=(None,None), pos=(6,6))
         
         bottomBox.add_widget(self.info)
         bottomBox.add_widget(btnMenu)

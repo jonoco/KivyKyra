@@ -23,6 +23,7 @@ from kivy.core.audio import SoundLoader
 from kivy.core.window import Window
 from kivy.core.image import Image as CImage
 from kivy.animation import Animation
+from kivy.vector import Vector
 
 import time
 import random
@@ -149,10 +150,10 @@ class KYRScreenManager(ScreenManager):
         
         #print "touch; {},{}".format(xTouch,yTouch)
         #print "player; {},{}".format(xPlayer,yPlayer)
-        distance = (xPlayer) - (xTouch)
-        duration = abs(distance) / 100
+        distance = Vector(xTouch, yTouch).length()
+        duration = distance /10
         #print 'duration: ', duration
-        anim = Animation(x=xTouch, y=yTouch, d=2)
+        anim = Animation(x=xTouch, y=yTouch, d=10)
         anim.start(player)
             
 class KYRScreen(Screen):

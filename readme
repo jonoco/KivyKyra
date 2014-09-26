@@ -1,3 +1,6 @@
+KivyKyra
+========
+
 manager
 -handles UI creation and controller management
 -send controller data to screenmanager
@@ -10,3 +13,13 @@ screenmanager
 
 screen
 -shows view and sprites for room
+
+
+TODO
+========
+boundaries: standardized collision objects to prevent player movement
+
+zone of detection: zone around player widget to detect boundaries ahead of collision, zone will dictate player 
+                    movement around boundaries
+player widget sizing: player widget should be half length of canvas, allowing upper sprite to overlap objects
+                        before collisions occur, preventing head-bumping boundaries

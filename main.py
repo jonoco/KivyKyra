@@ -1,7 +1,7 @@
 from kivy.config import Config
 
 Config.set('graphics', 'height', '700')
-Config.set('graphics', 'width', '1024')
+Config.set('graphics', 'width', '1120')
 Config.write()
 
 from kivy.app import App
@@ -61,6 +61,7 @@ class AGSprite(Image):
 class KYRScreenManager(ScreenManager):
     touchLocation = ListProperty()
     playerLocation = ListProperty()
+    velocity = NumericProperty(200)
     
     def __init__(self, **kwargs):
         super(KYRScreenManager, self).__init__(**kwargs)
@@ -95,25 +96,27 @@ class KYRScreenManager(ScreenManager):
         self.overworld = SoundLoader.load('assets/sound/overworld.wav')
         
     def buildLocationEvent(self):
-        self.room1.locationEvent = dict(bottom = self.room2)
-        self.room2.locationEvent = dict(top = self.room1)
+        # location directions are inverted
+        self.room1.locationEvent = dict(top = self.room2)
+        self.room2.locationEvent = dict(bottom = self.room1)
         
     def updatePlayerLocation(self, dt):
         self.playerLocation = self.current_screen.player.pos
     
     def on_playerLocation(self, instance, value):
+        # evaluate whether room has room connection at event location
         print "on_playerLocation: ",value
         x = value[0]
         y = value[1]
         
         if y > 448:
-            self.evaluateEvent('top')
-        elif y < 64:
             self.evaluateEvent('bottom')
+        elif y < 64:
+            self.evaluateEvent('top')
         elif x < 64:
-            self.evaluateEvent('left')
-        elif x > 960:
             self.evaluateEvent('right')
+        elif x > 960:
+            self.evaluateEvent('left')
         
     def evaluateEvent(self, spot):
         locationEvent = self.current_screen.locationEvent
@@ -148,12 +151,10 @@ class KYRScreenManager(ScreenManager):
         xPlayer = self.playerLocation[0]
         yPlayer = self.playerLocation[1]
         
-        #print "touch; {},{}".format(xTouch,yTouch)
-        #print "player; {},{}".format(xPlayer,yPlayer)
-        distance = Vector(xTouch, yTouch).length()
-        duration = distance /10
-        #print 'duration: ', duration
-        anim = Animation(x=xTouch, y=yTouch, d=10)
+        distance = Vector(xTouch, yTouch).distance((xPlayer,yPlayer))
+        duration = distance / self.velocity
+        
+        anim = Animation(x=xTouch, y=yTouch, d=duration)
         anim.start(player)
             
 class KYRScreen(Screen):
@@ -205,7 +206,7 @@ class KYRScreen(Screen):
         
     def buildBackground(self, tex):
         with self.field.canvas.before:
-            Rectangle(texture = tex, pos=(0,0), size=(1024,512))
+            Rectangle(texture = tex, pos=(0,0), size=(1068,450))
     
     def loadWidgets(self):
         self.add_widget(self.field)
@@ -261,9 +262,10 @@ class KYRScreen(Screen):
     def didCollision(self):
         pass
 
-class Manager(BoxLayout):
+class Manager(RelativeLayout):
 
-    touchLocation = ListProperty()
+    touchLocationScreen = ListProperty()
+    touchLocationUI = ListProperty()
     infoText = StringProperty('adventure awaits!\n')
     
     def __init__(self, **kwargs):
@@ -275,12 +277,17 @@ class Manager(BoxLayout):
         #print('value.pos: {} value.spos: {}'.format(value.pos, value.spos))
         x = value.pos[0]
         y = value.pos[1]
-        local = self.screenManager.to_local(x, y, True)
-        self.touchLocation = local
-        self.infoText = str(local)
+        localScreen = self.screenManager.to_local(x, y, True)
+        if localScreen[0] < 0 or localScreen[1] < 0:
+            pass # only update touchLocation for the screen when on screen
+        else:
+            self.touchLocationScreen = localScreen
+            self.touchLocationUI = (x,y)
+        
+        self.infoText = str(localScreen)
            
-    def on_touchLocation(self, instance, value):
-        self.screenManager.touchLocation = self.touchLocation
+    def on_touchLocationScreen(self, instance, value):
+        self.screenManager.touchLocation = self.touchLocationScreen
     
     def eventCompleted(self):
         pass
@@ -295,9 +302,9 @@ class Manager(BoxLayout):
         
     def buildUI(self):
         bottomBox = RelativeLayout() # 1024,188
-        self.screenManager = KYRScreenManager(size=(1024,512), size_hint=(None,None))
+        self.screenManager = KYRScreenManager(size=(1068,450), size_hint=(None,None), pos=(25,224))
         self.info = TextInput(text=self.infoText, multiline=True, readonly=True, size=(1014,30), size_hint=(None,None), pos=(6,152))
-        btnMenu = Button(text='menu', size=(200,140), size_hint=(None,None), pos=(6,6))
+        btnMenu = Button(text='menu', size=(196,120), size_hint=(None,None), pos=(28,16), opacity = .5)
         
         bottomBox.add_widget(self.info)
         bottomBox.add_widget(btnMenu)
@@ -313,9 +320,18 @@ class GameApp(App):
 if __name__ == "__main__":
     GameApp().run()
 
+'''
+TODO
+boundaries: standardized collision objects to prevent player movement
 
+zone of detection: zone around player widget to detect boundaries ahead of collision, zone will dictate player 
+                    movement around boundaries
+player widget sizing: player widget should be half length of canvas, allowing upper sprite to overlap objects
+                        before collisions occur, preventing head-bumping boundaries
+'''
+    
 '''
 Created on Sep 17, 2014
 
-@author: Odysseus
+@author: Joshua Cox
 '''

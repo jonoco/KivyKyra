@@ -28,7 +28,13 @@ from kivy.vector import Vector
 import time
 import random
 
-class WSprite(Widget):
+class Boundary(Widget):
+    room = BooleanProperty(False)
+    solid = BooleanProperty(False)
+    def __init__(self, **kwargs):
+        super(Boundary, self).__init__(**kwargs)
+
+class WSprite(Widget): # CURRENTLY REDUNDANT
     pos = ListProperty()
     def __init__(self,tex, **kwargs):
         super(WSprite, self).__init__(**kwargs)
@@ -57,30 +63,22 @@ class AGSprite(Image):
     
     def on_start(self):
         print 'i started' 
-        
+
+class AGPlayer(AGSprite):
+    def __init__(self,**kwargs):
+        super(AGPlayer, self).__init__(**kwargs)
+        self.boundary = Widget(width = (self.width+8),height = (self.height+8), pos = self.pos)
+            
 class KYRScreenManager(ScreenManager):
     touchLocation = ListProperty()
     playerLocation = ListProperty()
+    playerDestination = ListProperty()
     velocity = NumericProperty(200)
     
     def __init__(self, **kwargs):
         super(KYRScreenManager, self).__init__(**kwargs)
         self.loadAssets()
-        self.room1 = KYRScreen(name='room1',
-                               bg = 'assets/art/room1.png',
-                               music = self.overworld,
-                               startLocations = dict(top = (512, 96),
-                                                     bottom = (512, 416),
-                                                     left = (928, 256),
-                                                     right = (96, 256)
-                                )) # inverse directions, based on direction you enter from
-        self.room2 = KYRScreen(name='room2',
-                               bg = 'assets/art/room2.png',
-                               startLocations = dict(top = (512, 96),
-                                                     bottom = (512, 416),
-                                                     left = (928, 256),
-                                                     right = (96, 256)
-                                ))
+        self.buildRooms()
         
         #self.add_widget(room1)
         #self.add_widget(room2)
@@ -92,59 +90,79 @@ class KYRScreenManager(ScreenManager):
         
         Clock.schedule_interval(self.updatePlayerLocation, 0.5)
     
+    def buildRooms(self):
+        self.room1 = KYRScreen(name='room1', bg = 'assets/art/room01.png', music = self.overworld)
+        self.room2 = KYRScreen(name='room2', bg = 'assets/art/room02.png',)
+        self.room3 = KYRScreen(name='room3', bg = 'assets/art/room03.png',)
+        self.room4 = KYRScreen(name='room4', bg = 'assets/art/room04.png',)
+        self.room5 = KYRScreen(name='room5', bg = 'assets/art/room05.png',)
+        self.room6 = KYRScreen(name='room6', bg = 'assets/art/room06.png',)
+        self.room7 = KYRScreen(name='room7', bg = 'assets/art/room07.png',)
+        self.room8 = KYRScreen(name='room8', bg = 'assets/art/room08.png',)
+        self.room9 = KYRScreen(name='room9', bg = 'assets/art/room09.png',)
+        self.room10 = KYRScreen(name='room10', bg = 'assets/art/room10.png',)
+        self.room11 = KYRScreen(name='room11', bg = 'assets/art/room11.png',)
+        self.room12 = KYRScreen(name='room12', bg = 'assets/art/room12.png',)
+        self.room13 = KYRScreen(name='room13', bg = 'assets/art/room13.png',)
+        self.room14 = KYRScreen(name='room14', bg = 'assets/art/room14.png',)
+        self.room15 = KYRScreen(name='room15', bg = 'assets/art/room15.png',)
+        self.room16 = KYRScreen(name='room16', bg = 'assets/art/room16.png',)
+        self.room17 = KYRScreen(name='room17', bg = 'assets/art/room17.png',)
+        self.room18 = KYRScreen(name='room18', bg = 'assets/art/room18.png',)
+        self.room19 = KYRScreen(name='room19', bg = 'assets/art/room19.png',) 
+         
     def loadAssets(self):
-        self.overworld = SoundLoader.load('assets/sound/overworld.wav')
+        self.overworld = SoundLoader.load('assets/music/overworld.wav')
         
     def buildLocationEvent(self):
-        # location directions are inverted
-        self.room1.locationEvent = dict(top = self.room2)
-        self.room2.locationEvent = dict(bottom = self.room1)
+        # treehouse
+        self.room1.locationEvent = dict(bottom = [self.room7, (650,115)])
+        # treehouse base
+        self.room2.locationEvent = dict(top = [self.room7, (500,120)], right = [], left = [])
+        # treehouse doorway
+        self.room7.locationEvent = dict(top = [self.room1, (500,70)], bottom = [self.room2, (500,120)])
         
     def updatePlayerLocation(self, dt):
         self.playerLocation = self.current_screen.player.pos
     
     def on_playerLocation(self, instance, value):
         # evaluate whether room has room connection at event location
+        # evaulate boundary collision
         print "on_playerLocation: ",value
+        self.evaluateBoundaryCollision(value)
         x = value[0]
         y = value[1]
         
-        if y > 448:
-            self.evaluateEvent('bottom')
-        elif y < 64:
+        if y > 386:
             self.evaluateEvent('top')
+        elif y < 64:
+            self.evaluateEvent('bottom')
         elif x < 64:
-            self.evaluateEvent('right')
-        elif x > 960:
             self.evaluateEvent('left')
+        elif x > 960:
+            self.evaluateEvent('right')
+    
+    def evaluateBoundaryCollision(self, position):
+        pass
         
     def evaluateEvent(self, spot):
         locationEvent = self.current_screen.locationEvent
         if spot in locationEvent:
-            self.parent.infoText = locationEvent[spot].name
-            room = locationEvent[spot]
-            self.changeRoom(room, spot)
+            room = locationEvent[spot][0]
+            position = locationEvent[spot][1]
+            self.changeRoom(room, position)
         
-    def changeRoom(self, room, spot):
+    def changeRoom(self, room, position):
         self.current_screen.isCurrent = False
         self.remove_widget(self.current_screen)
-        room.direction = spot
+        room.playerLocation = position
         self.switch_to(room)
         self.current_screen.isCurrent = True
-    
-    def adjustPlayerLocation(self, room, spot): 
-        if spot == 'top':
-            room.playerLocation = (512, 96)
-        elif spot == 'bottom':
-            room.playerLocation = (512, 416)
-        elif spot == 'right':
-            room.playerLocation = (928, 256)
-        elif spot == 'left':
-            room.playerLocation = (96, 256)
     
     def on_touchLocation(self, instance, value):
         #print 'value: ',value
         self.playerLocation = self.current_screen.player.pos
+        self.playerDestination = value
         player = self.current_screen.player
         xTouch = value[0]
         yTouch = value[1]
@@ -162,17 +180,24 @@ class KYRScreen(Screen):
     spriteList = ListProperty()
     locationEvent = DictProperty() # all location-based events for the room, including room changes
     player = ObjectProperty()
+    playerBoundary = ObjectProperty()
     isCurrent = BooleanProperty(False)
-    playerLocation = ListProperty((200,200))
+    playerLocation = ListProperty((500,70))
     bg =  StringProperty()
     music = ObjectProperty()
-    startLocations = DictProperty()
+    #startLocations = DictProperty()
     direction = StringProperty('top')
     
     def __init__(self, **kwargs):
         super(KYRScreen, self).__init__(**kwargs)
         self.field = RelativeLayout()
-        
+        '''
+        # inverse directions, based on direction you enter from
+        self.startLocations = dict(top = (512, 96),
+                                   bottom = (512, 416),
+                                   left = (928, 256),
+                                   right = (96, 256))
+        '''
         #sprites = self.loadSprites()
         #self.buildSprites(sprites)
     
@@ -184,7 +209,7 @@ class KYRScreen(Screen):
 
     def turnOn(self):
         print 'turning on {}'.format(self)
-        self.getStartLocation()
+        #self.getStartLocation()
         self.buildPlayer(self.playerLocation)
         self.loadBackground()
         self.loadWidgets()
@@ -192,7 +217,7 @@ class KYRScreen(Screen):
     
     def turnOff(self):
         print 'turning off {}'.format(self)
-        self.parent.playerLocation = self.playerLocation
+        #self.parent.playerLocation = self.playerLocation
         self.unloadWidgets()
         self.toggleMusic('off')
     
@@ -240,10 +265,13 @@ class KYRScreen(Screen):
         pass
         
     def buildPlayer(self, playerLocation):
-        self.player = AGSprite(source = 'assets/art/brandon-right.zip', size=(96,192))
+        self.player = AGPlayer(source = 'assets/art/brandon-right.zip', size=(96,192))
+        self.playerBoundary = Widget(size=(104,200))
         #self.player.anim_delay = (-1)
         self.player.pos = playerLocation
+        self.playerBoundary.center = self.player.center
         self.field.add_widget(self.player)   
+        self.field.add_widget(self.playerBoundary)
     
     def loadSprites(self):
         # look in sprite list for sprite in specific room, return sprite list for room
@@ -287,6 +315,7 @@ class Manager(RelativeLayout):
         self.infoText = str(localScreen)
            
     def on_touchLocationScreen(self, instance, value):
+        # take touch input on the screenmanager and send to SM for handling
         self.screenManager.touchLocation = self.touchLocationScreen
     
     def eventCompleted(self):
@@ -319,16 +348,6 @@ class GameApp(App):
 
 if __name__ == "__main__":
     GameApp().run()
-
-'''
-TODO
-boundaries: standardized collision objects to prevent player movement
-
-zone of detection: zone around player widget to detect boundaries ahead of collision, zone will dictate player 
-                    movement around boundaries
-player widget sizing: player widget should be half length of canvas, allowing upper sprite to overlap objects
-                        before collisions occur, preventing head-bumping boundaries
-'''
     
 '''
 Created on Sep 17, 2014

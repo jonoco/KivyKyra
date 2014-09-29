@@ -31,12 +31,27 @@ import random
 class Boundary(Widget):
     room = BooleanProperty(False)
     solid = BooleanProperty(False)
-    def __init__(self, **kwargs):
+    event = ObjectProperty()
+    
+    def __init__(self, pos, size, event = None, startLocation = None, **kwargs):
         super(Boundary, self).__init__(**kwargs)
+        self.size_hint = (None,None)
+        self.pos = pos
+        self.size = size
+        self.event = event
+        self.startLocation = startLocation
+        
+        if event == None:
+            self.solid = True
+        
+        print "pos {} size {} event {}".format(self.pos, self.size, self.event)
 
+class Info(TextInput):
+    pass
+    
 class WSprite(Widget): # CURRENTLY REDUNDANT
     pos = ListProperty()
-    def __init__(self,tex, **kwargs):
+    def __init__(self, tex, **kwargs):
         super(WSprite, self).__init__(**kwargs)
         self.tex = tex
         self.rect = Rectangle(texture = self.tex,
@@ -82,13 +97,13 @@ class KYRScreenManager(ScreenManager):
         
         #self.add_widget(room1)
         #self.add_widget(room2)
-        self.buildLocationEvent()
+        self.buildLocationEvents()
         self.transition=WipeTransition()
         
         self.switch_to(self.room1)
         self.room1.isCurrent = True    
         
-        Clock.schedule_interval(self.updatePlayerLocation, 0.5)
+        Clock.schedule_interval(self.updatePlayerLocation, (1/60))
     
     def buildRooms(self):
         self.room1 = KYRScreen(name='room1', bg = 'assets/art/room01.png', music = self.overworld)
@@ -114,36 +129,80 @@ class KYRScreenManager(ScreenManager):
     def loadAssets(self):
         self.overworld = SoundLoader.load('assets/music/overworld.wav')
         
-    def buildLocationEvent(self):
+    def buildLocationEvents(self):
+        # Boundary(pos, size, event, start location) rooms
+        # Boundary(pos, size, solid = True) walls
+        w = self.width
+        h = self.height
         # treehouse
-        self.room1.locationEvent = dict(bottom = [self.room7, (650,115)])
+        self.room1.boundaries = [Boundary((500,0), (w,32), self.room7, (650,105)),
+                                 Boundary((0,h-150), (w,150)),
+                                 Boundary((0,0), (200,h)),
+                                 Boundary((0,0), (500,64))
+                                 ]
         # treehouse base
-        self.room2.locationEvent = dict(top = [self.room7, (500,120)], right = [], left = [])
+        self.room2.boundaries = [Boundary((0,h-32), (w,32), self.room7, (500,120)),
+                                 Boundary((w-32,0), (32,w), self.room8, (100,70)),
+                                 Boundary((0,0), (32,h), self.room3, (800,70))]
         # treehouse doorway
-        self.room7.locationEvent = dict(top = [self.room1, (500,70)], bottom = [self.room2, (500,120)])
+        self.room7.boundaries = [Boundary((0,h-100), (w,32), self.room1, (500,70)),
+                                 Boundary((0,50), (w, 32), self.room2, (500,120))]
         
     def updatePlayerLocation(self, dt):
         self.playerLocation = self.current_screen.player.pos
     
     def on_playerLocation(self, instance, value):
-        # evaluate whether room has room connection at event location
         # evaulate boundary collision
-        print "on_playerLocation: ",value
-        self.evaluateBoundaryCollision(value)
-        x = value[0]
-        y = value[1]
-        
-        if y > 386:
-            self.evaluateEvent('top')
-        elif y < 64:
-            self.evaluateEvent('bottom')
-        elif x < 64:
-            self.evaluateEvent('left')
-        elif x > 960:
-            self.evaluateEvent('right')
+        #print "on_playerLocation: ",value
+        self.evaluateCollision(value)
     
-    def evaluateBoundaryCollision(self, position):
-        pass
+    def evaluateCollision(self, destination):
+        player = self.current_screen.player
+        boundaries = self.current_screen.boundaries
+        
+        for boundary in boundaries:
+            if player.collide_widget(boundary):
+                print 'collision!'
+                self.didCollision(boundary, destination)
+                
+    def didCollision(self, boundary, destination):
+        print "boundary: ",boundary
+        print "boundary event: ", boundary.event
+        if boundary.solid:
+            self.solidCollision(boundary, destination)
+        else:
+            self.changeRoom(boundary.event, boundary.startLocation)
+    
+    def solidCollision(self, boundary, destination):
+        player = self.current_screen.player
+        print 'solid collision'
+        print "boundary height: {}, width: {}".format(boundary.height, boundary.width)
+        print "boundary x: {}, y: {}".format(boundary.x, boundary.y)
+        print "player x: {}, y: {}".format(player.x, player.y)
+        
+        x = destination[0]
+        y = destination[1]
+        start = player.pos
+        
+        if player.x > (boundary.width + boundary.x - 10): # player is right of boundary
+            print "right of boundary"
+            player.x = (boundary.width + boundary.x)
+            self.anim.stop_property(player, 'x')
+            
+        if player.x < (boundary.x): # player is left of boundary
+            print "left of boundary"
+            player.x = (boundary.x - player.width)
+            self.anim.stop_property(player, 'x')
+            
+        if player.y > (boundary.height + boundary.y - 10): # player is above boundary
+            print "above boundary"
+            player.y = (boundary.height + boundary.y)
+            self.anim.stop_property(player, 'y')
+            
+        if player.y <= (boundary.y): # player is below boundary
+            print "below boundary"
+            player.y = (boundary.y - player.height)
+            self.anim.stop_property(player, 'y')
         
     def evaluateEvent(self, spot):
         locationEvent = self.current_screen.locationEvent
@@ -169,11 +228,16 @@ class KYRScreenManager(ScreenManager):
         xPlayer = self.playerLocation[0]
         yPlayer = self.playerLocation[1]
         
-        distance = Vector(xTouch, yTouch).distance((xPlayer,yPlayer))
+        start = (xPlayer,yPlayer)
+        end = (xTouch,yTouch)
+        self.animateSprite(start, end, player)
+        
+    def animateSprite(self, start, end, sprite):
+        distance = Vector(start).distance(end)
         duration = distance / self.velocity
         
-        anim = Animation(x=xTouch, y=yTouch, d=duration)
-        anim.start(player)
+        self.anim = Animation(x=end[0], y=end[1], d=duration)
+        self.anim.start(sprite)
             
 class KYRScreen(Screen):
     
@@ -186,21 +250,12 @@ class KYRScreen(Screen):
     bg =  StringProperty()
     music = ObjectProperty()
     #startLocations = DictProperty()
-    direction = StringProperty('top')
+    boundaries = ListProperty()
     
     def __init__(self, **kwargs):
         super(KYRScreen, self).__init__(**kwargs)
-        self.field = RelativeLayout()
-        '''
-        # inverse directions, based on direction you enter from
-        self.startLocations = dict(top = (512, 96),
-                                   bottom = (512, 416),
-                                   left = (928, 256),
-                                   right = (96, 256))
-        '''
-        #sprites = self.loadSprites()
-        #self.buildSprites(sprites)
-    
+        self.field = FloatLayout()
+
     def on_isCurrent(self, instance, value):
         if value:
             self.turnOn()
@@ -209,20 +264,22 @@ class KYRScreen(Screen):
 
     def turnOn(self):
         print 'turning on {}'.format(self)
-        #self.getStartLocation()
         self.buildPlayer(self.playerLocation)
+        self.buildBoundaries()
         self.loadBackground()
         self.loadWidgets()
-        self.toggleMusic('on')
+        #self.toggleMusic('on')
     
     def turnOff(self):
         print 'turning off {}'.format(self)
         #self.parent.playerLocation = self.playerLocation
         self.unloadWidgets()
-        self.toggleMusic('off')
+        #self.toggleMusic('off')
     
-    def getStartLocation(self):
-        self.playerLocation = self.startLocations[self.direction]
+    def buildBoundaries(self):
+        for boundary in self.boundaries:
+            self.field.add_widget(boundary)
+            print 'building boundary: ', boundary
           
     def loadBackground(self):
         print 'loading bg', self.bg
@@ -237,7 +294,8 @@ class KYRScreen(Screen):
         self.add_widget(self.field)
         
     def unloadWidgets(self):
-        self.field.remove_widget(self.player)
+        # removes all widgets to prevent conflicts when re-instantiating screen
+        self.field.clear_widgets()
         self.remove_widget(self.field)      
     
     def toggleMusic(self, value): 
@@ -332,7 +390,7 @@ class Manager(RelativeLayout):
     def buildUI(self):
         bottomBox = RelativeLayout() # 1024,188
         self.screenManager = KYRScreenManager(size=(1068,450), size_hint=(None,None), pos=(25,224))
-        self.info = TextInput(text=self.infoText, multiline=True, readonly=True, size=(1014,30), size_hint=(None,None), pos=(6,152))
+        self.info = Info(text=self.infoText, multiline=True, readonly=True, size=(1014,30), size_hint=(None,None), pos=(25,167))
         btnMenu = Button(text='menu', size=(196,120), size_hint=(None,None), pos=(28,16), opacity = .5)
         
         bottomBox.add_widget(self.info)

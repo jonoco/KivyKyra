@@ -1,16 +1,16 @@
 <Boundary>:
-	canvas:
-		Color:
-			rgba: (1,1,1,0.2)
-		Rectangle:
-			size: self.size
-			pos: self.pos
+#	canvas:
+#		Color:
+#			rgba: (1,1,1,0.2)
+#		Rectangle:
+#			size: self.size
+#			pos: self.pos
 
 <Info>:
 	background_color: (.9,.9,.9,1)
 
 <Manager>:
-	canvas:
+	canvas.before:
 		Rectangle:
 			source: 'assets/art/GUI_01.png'
 			size: self.size

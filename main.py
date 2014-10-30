@@ -8,7 +8,7 @@ from kivy.app import App
 from kivy.uix.button import Button
 from kivy.uix.label import Label
 from kivy.uix.widget import Widget
-from kivy.properties import ListProperty, ObjectProperty, NumericProperty, StringProperty, BooleanProperty, DictProperty, BoundedNumericProperty
+from kivy.properties import ListProperty, ObjectProperty, NumericProperty, StringProperty, BooleanProperty, DictProperty
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.relativelayout import RelativeLayout
 from kivy.uix.floatlayout import FloatLayout
@@ -28,6 +28,8 @@ from kivy.vector import Vector
 import time
 import random
 
+items = []
+
 class Boundary(Widget):
     room = BooleanProperty(False)
     solid = BooleanProperty(False)
@@ -46,6 +48,18 @@ class Boundary(Widget):
         
         print "pos {} size {} event {}".format(self.pos, self.size, self.event)
 
+class Body(Widget):
+    def __init__(self, **kwargs):
+        super(Body, self).__init__(**kwargs)
+        self.makeCollisionPoints(self.pos, self.size)
+    
+    def makeCollisionPoints(self, pos, size):
+        x,y = pos
+        h,w = size
+        
+        print 'Body x {} y {} h {} w {}'.format(x,y,h,w)
+        self.collisionPoints = []
+    
 class Info(TextInput):
     pass
     
@@ -86,6 +100,12 @@ class AGPlayer(AGSprite):
     
     def on_pos(self, instance, value):
         self.zone.pos = self.pos
+
+class Item(AGSprite):
+    def __init__(self,**kwargs):
+        super(Item, self).__init__(**kwargs)
+        self.size = (48,48)
+        items.append(self)
             
 class KYRScreenManager(ScreenManager):
     touchLocation = ListProperty()
@@ -97,23 +117,26 @@ class KYRScreenManager(ScreenManager):
     destination = ListProperty()
     boundary = ObjectProperty()
     music = ObjectProperty(None)
+    selected = ObjectProperty(None)
     
     def __init__(self, **kwargs):
         super(KYRScreenManager, self).__init__(**kwargs)
+        #self.anim = Animation()
         self.loadAssets()
         self.buildRooms()
+        self.buildItems()
         
-        #self.add_widget(room1)
-        #self.add_widget(room2)
         self.buildLocationEvents()
-        self.transition=WipeTransition()
-        
-        self.loadSprites(self.room1)
-        self.switch_to(self.room1)
-        self.room1.isCurrent = True    
+        self.transition=WipeTransition()    
+        self.init() 
         
         Clock.schedule_interval(self.updatePlayerLocation, (1/60))
     
+    def init(self):
+        self.loadSprites(self.room1)
+        self.switch_to(self.room1)
+        self.room1.isCurrent = True
+        
     def buildRooms(self):
         self.room1 = KYRScreen(name='room1', bg = 'assets/art/room01.png', music = self.silent)
         self.room2 = KYRScreen(name='room2', bg = 'assets/art/room02.png', music = self.the_forest)
@@ -123,7 +146,8 @@ class KYRScreenManager(ScreenManager):
         self.room6 = KYRScreen(name='room6', bg = 'assets/art/room06-1.png', music = self.brynn_temple)
         self.room7 = KYRScreen(name='room7', bg = 'assets/art/room07.png', music = self.the_forest)
         self.room8 = KYRScreen(name='room8', bg = 'assets/art/room08.png', music = self.the_forest)
-        self.room9 = KYRScreen(name='room9', bg = 'assets/art/room09.png', fg = 'assets/art/room09-stone.png', music = self.pool_of_sorrow)
+        self.room9 = KYRScreen(name='room9', bg = 'assets/art/room09.png',
+                               fg = 'assets/art/room09-stone.png', music = self.pool_of_sorrow)
         self.room11 = KYRScreen(name='room11', bg = 'assets/art/room11.png', music = self.the_forest)
         self.room12 = KYRScreen(name='room12', bg = 'assets/art/room12.png', music = self.the_forest)
         self.room13 = KYRScreen(name='room13', bg = 'assets/art/room13.png', music = self.the_forest)
@@ -162,9 +186,11 @@ class KYRScreenManager(ScreenManager):
         # Boundary(pos, size, solid = True) walls
         w = self.width
         h = self.height
+        
         # treehouse
         self.room1.boundaries = [Boundary((500,0), (w,32), self.room7, (650,105)),
-                                 Boundary((0,h-150), (w,150)),
+                                 Boundary((0,200), (w,150)),
+                                 Boundary((w-50,0), (50,h)),
                                  Boundary((0,0), (200,h)),
                                  Boundary((0,0), (500,64))]
         # treehouse base
@@ -178,10 +204,11 @@ class KYRScreenManager(ScreenManager):
         self.room4.boundaries = [Boundary((450,h-32), (200,32), self.room5, (500,70)),
                                  Boundary((w-32,0), (32,h), self.room3, (70,70))]
         # temple entrance
-        self.room5.boundaries = [Boundary((0,0), (w,32), self.room4, (350,h-100)),
+        self.room5.boundaries = [Boundary((0,0), (w,32), self.room4, (450,h-200)),
                                  Boundary((550,200), (50,100), self.room6, (700,100))]
         # temple
-        self.room6.boundaries = [Boundary((w-32,0), (32,h), self.room5, (200,70))]
+        self.room6.boundaries = [Boundary((w-32,0), (32,h), self.room5, (w-420,70))]
+        
         # treehouse doorway
         self.room7.boundaries = [Boundary((0,h-100), (w,32), self.room1, (500,70)),
                                  Boundary((0,50), (w, 32), self.room2, (500,120))]
@@ -201,11 +228,13 @@ class KYRScreenManager(ScreenManager):
                                   Boundary((w-32,0), (32,h), self.room14, (70,70))]
         # woods 4
         self.room13.boundaries = [Boundary((w-32,0), (32,h), self.room12, (70,70))]
+        
         # crystal altar
         self.room14.boundaries = [Boundary((0,0), (32,h), self.room12, (800,100)),
                                   Boundary((w-32,0), (32,h), self.room16, (100,100))]
         # sea cliff
         self.room16.boundaries = [Boundary((0,0), (32,h), self.room14, (800,100))]
+        
         # woods 5
         self.room17.boundaries = [Boundary((500,h-32), (w-500,32), self.room11, (500,100)),
                                   Boundary((100,0), (w-100,32), self.room18, (700,200))]
@@ -214,7 +243,10 @@ class KYRScreenManager(ScreenManager):
                                    Boundary((100,100), (50,200), self.room19, (800,70))]
         # bridge cave
         self.room19.boundaries = [Boundary((w-32,0), (32,300), self.room18, (300,70))]
-        
+    
+    def buildItems(self):
+        self.room1.items = [Item(source = 'assets/items/emerald.png', pos = (819,397))]
+    
     def updatePlayerLocation(self, dt):
         self.playerLocation = self.current_screen.player.pos
     
@@ -280,7 +312,7 @@ class KYRScreenManager(ScreenManager):
             
         elif player.y < (boundary.y + 5): # player is below boundary
             print "below boundary"
-            player.y = (boundary.y - player.height)
+            player.y = (boundary.y - player.height/2)
             self.anim.stop_property(player, 'y')
         
     # REDUNDANT    
@@ -298,15 +330,19 @@ class KYRScreenManager(ScreenManager):
         self.loadSprites(room)
         self.switch_to(room)
         self.current_screen.isCurrent = True
+        self.parent.screen = room
         self.toggleMusic()
     
     def on_touchLocation(self, instance, value):
         #print 'value: ',value
+        if self.selected is None:
+            self.movePlayer(instance, value)
+      
+    def movePlayer(self, instance, value):
         self.playerLocation = self.current_screen.player.pos
         self.playerDestination = value
         player = self.current_screen.player
-        xTouch = value[0]
-        yTouch = value[1]
+        xTouch,yTouch = value[0],value[1]
         xPlayer = self.playerLocation[0]
         yPlayer = self.playerLocation[1]
         
@@ -342,6 +378,7 @@ class KYRScreen(Screen):
     music = ObjectProperty(None)
     #startLocations = DictProperty()
     boundaries = ListProperty()
+    items = ListProperty()
     
     def __init__(self, **kwargs):
         super(KYRScreen, self).__init__(**kwargs)
@@ -384,7 +421,7 @@ class KYRScreen(Screen):
         self.field.add_widget(fg)
         #with self.field.canvas:
         #    Rectangle(texture = fg, pos=(0,0), size=(1068,450))
-    
+            
     def loadWidgets(self):
         self.add_widget(self.field)
         
@@ -422,37 +459,72 @@ class KYRScreen(Screen):
         for sprite in sprites:
             self.field.add_widget(sprite)
             self.spriteList.append(sprite)
-    
-    def checkCollision(self):
-        pass
-        
-    def didCollision(self):
-        pass
 
 class Manager(RelativeLayout):
 
     touchLocationScreen = ListProperty()
     touchLocationUI = ListProperty()
     infoText = StringProperty('adventure awaits!\n')
+    screen = ObjectProperty()
+    selected = BooleanProperty(False)
+    selectedObj = ObjectProperty(None)
     
     def __init__(self, **kwargs):
         super(Manager, self).__init__(**kwargs)
         self.buildUI()
         self.orientation = 'vertical'
+    
+    def on_screen(self, instance, value):
+        items = value.items
+        print 'screen change: ',value
+        print 'screen items: ',items
+        
+        for i in items:
+            self.add_widget(i)
+            print 'loading item; ', i
         
     def on_touch_down(self, value):
         #print('value.pos: {} value.spos: {}'.format(value.pos, value.spos))
         x = int(value.pos[0])
         y = int(value.pos[1])
-        localScreen = self.screenManager.to_local(x, y, True)
-        if localScreen[0] < 0 or localScreen[1] < 0:
-            pass # only update touchLocation for the screen when on screen
-        else:
-            self.touchLocationScreen = localScreen
-            self.touchLocationUI = (x,y)
+        print '({},{})'.format(x,y)
+        for i in items:
+            if i.collide_point(x,y):
+                print 'item selected'
+                self.selectedObj = i
+                self.selected = True
+                break
+            else:
+                self.selected = False
         
-        self.infoText = str(localScreen)
-           
+        if self.selected is False:
+            localScreen = self.screenManager.to_local(x, y, True)
+            if localScreen[0] < 0 or localScreen[1] < 0:
+                pass # only update touchLocation for the screen when on screen
+            else:
+                self.touchLocationScreen = localScreen
+                self.touchLocationUI = (x,y)
+            
+            self.infoText = str(localScreen)
+    
+    def on_touch_up(self, value):        
+        if self.selected is True:
+            for node in self.nodes:
+                if self.selectedObj.collide_widget(node):
+                    print 'node collision' 
+                    self.selectedObj.center = node.center
+                    self.selected = False
+                    break
+        
+    def on_touch_move(self, value):
+        x = value.pos[0]
+        y = value.pos[1]
+        
+        if self.selected:
+            self.selectedObj.center = (x,y)
+            print 'x,y ',x,y
+            print 'object center: ',self.selectedObj.center    
+               
     def on_touchLocationScreen(self, instance, value):
         # take touch input on the screenmanager and send to SM for handling
         self.screenManager.touchLocation = self.touchLocationScreen
@@ -467,11 +539,35 @@ class Manager(RelativeLayout):
     def on_infoText(self, instance, value): 
         print value
         self.info.text = self.infoText
+    
+    def buildInventory(self):
+        n1 = Button(text='I1', size_hint=(None, None), size=(24,24), pos=(350,100))
+        n2 = Button(text='I2', size_hint=(None, None), size=(24,24), pos=(420,100))
+        n3 = Button(text='I3', size_hint=(None, None), size=(24,24), pos=(490,100))
+        n4 = Button(text='I4', size_hint=(None, None), size=(24,24), pos=(560,100))
+        n5 = Button(text='I5', size_hint=(None, None), size=(24,24), pos=(630,100))
+        n6 = Button(text='I6', size_hint=(None, None), size=(24,24), pos=(350,24))
+        n7 = Button(text='I7', size_hint=(None, None), size=(24,24), pos=(420,24))
+        n8 = Button(text='I8', size_hint=(None, None), size=(24,24), pos=(490,24))
+        n9 = Button(text='I9', size_hint=(None, None), size=(24,24), pos=(560,24))
+        n0 = Button(text='I0', size_hint=(None, None), size=(24,24), pos=(630,24))
+        self.add_widget(n1)
+        self.add_widget(n2)
+        self.add_widget(n3)
+        self.add_widget(n4)
+        self.add_widget(n5)
+        self.add_widget(n6)
+        self.add_widget(n7)
+        self.add_widget(n8)
+        self.add_widget(n9)
+        self.add_widget(n0)
+        self.nodes = [n1,n2,n3,n4,n5,n6,n7,n8,n9,n0]
         
     def buildUI(self):
         bottomBox = RelativeLayout() # 1024,188
         self.screenManager = KYRScreenManager(size=(1068,450), size_hint=(None,None), pos=(25,224))
-        self.info = Info(text=self.infoText, multiline=True, readonly=True, size=(1014,30), size_hint=(None,None), pos=(25,167))
+        self.info = Info(text=self.infoText, multiline=True,
+                        readonly=True, size=(1014,30), size_hint=(None,None), pos=(25,167))
         btnMenu = Button(text='menu', size=(196,120), size_hint=(None,None), pos=(28,16), opacity = .5)
         
         bottomBox.add_widget(self.info)
@@ -479,6 +575,9 @@ class Manager(RelativeLayout):
         
         self.add_widget(self.screenManager)
         self.add_widget(bottomBox)
+        self.buildInventory()
+        
+        self.screen = self.screenManager.current_screen 
         
 class GameApp(App):
     

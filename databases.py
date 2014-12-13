@@ -3,24 +3,19 @@ import sqlite3
 db = sqlite3.connect('KyraDB.db')
 
 def main():
-    '''
-        standard procedure:
-    '''
+    db.execute('INSERT INTO Item ( Room,X,Y,Inventory,Name,Spawned,Path ) VALUES ( ?,?,?,?,?,?,? )', ('room1',500,400,False,'Emerald',False,0000))
+    db.commit()
+        
+    x = db.execute('SELECT * FROM Item')
+    for i in x: print i
+
+def rebuildDB():    
     db.execute('DROP TABLE IF EXISTS Item')
     db.execute('''
     CREATE TABLE Item
-    ( ItemID INTEGER PRIMARY KEY, Holding BOOLEAN, Room VARCHAR(20), X INT, Y INT, Inventory INT, Name TEXT);'''
+    ( ItemID INTEGER PRIMARY KEY, Holding BOOLEAN, Room VARCHAR(20), X INT, Y INT, Inventory BOOL, Name TEXT, Spawned BOOLEAN );'''
     )    
-    db.commit()
-    
-    db.execute('INSERT INTO Item ( Holding, Name ) VALUES ( ?, ? )', (True, 'Gem'))
-    db.commit()
-    
-    
-    x = db.execute('SELECT * FROM Item')
-    for i in x:
-        print i
-    
+        
 def buildEventDivision():    
     '''
         build EventDivision table
@@ -58,9 +53,6 @@ def countPeopleInDivision():
         print "{}: {}".format(d[0], c)
         print ''
         for i in de: print "{} {}: {}".format(i[0],i[1],i[2])
-    
-
-
      
 def update():    
     Weight = 55
@@ -139,41 +131,7 @@ def insertFighter(row):
     cursor = db.execute('select * from Fighter WHERE LastName = ?',(ln,))
     for row in cursor:
         print row
-    
-def rebuildDB():
-    '''
-        drops all tables and rebuilds empty DB
-        use with caution
-    '''
-    
-    db = sqlite3.connect('FightPrototype.db')
-    
-
-    
-    db.execute('''
-    CREATE TABLE EventInfo 
-    ( EventID INTEGER PRIMARY KEY, Date DATE, Location TEXT, Fee INT, Ruleset VARCHAR(20), EventName VARCHAR(30) UNIQUE);'''
-    )
-    db.execute('''
-    CREATE TABLE EventDivision
-    ( DivisionID VARCHAR(30), PrebracketID VARCHAR(30) );'''
-    )
-    db.execute('''
-    CREATE TABLE Match
-    ( MatchID INTEGER PRIMARY KEY, Won INTEGER, Lost INTEGER, VictoryType VARCHAR(15), Points INT, Duration INT, DivisionID VARCHAR(30), EventID INT, Date DATETIME );'''
-    )
-    db.execute('''
-    CREATE TABLE Event
-    ( EntryID INTEGER PRIMARY KEY, FirstName TEXT, LastName TEXT, Gym Text, Age INT, AgeClass TEXT, Preweight REAL, Postweight REAL, Sex TEXT, Rank TEXT, DOB DATE, FighterID INTEGER, EventID INTEGER, DivisionID VARCHAR(30), Waiver BOOLEAN, Trainer VARCHAR(30), Fee INT, Win INT, Lose INT, Added DATETIME );  '''
-    )
-    db.execute('''
-    CREATE TABLE Fighter
-    ( FighterID INTEGER PRIMARY KEY, FirstName TEXT, LastName TEXT, Gym Text, Age INT, Weight REAL, Sex TEXT, Rank TEXT, DOB DATE, Image BLOB, Added DATETIME);'''
-    )
-    
-    db.commit()
-    getMaster(db)
-    
+        
 def getMaster(db):
     '''
         prints DB master
